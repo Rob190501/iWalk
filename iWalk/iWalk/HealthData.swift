@@ -7,6 +7,9 @@
 
 import Foundation
 import HealthKit
+import CreateML
+import CoreML
+import TabularData
 
 class HealthData: ObservableObject {
     @Published var data: [(date: Date, steps: Int, calories: Double)]
@@ -151,5 +154,87 @@ class HealthData: ObservableObject {
             completion("Errore durante il salvataggio del file: \(error.localizedDescription)")
         }
     }
+    
+    
+    
+    
+    
+    
+    
+    func trainModel() {
+        let fileManager = FileManager.default
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let csvURL = documentsDirectory.appendingPathComponent("HealthData.csv")
+        let outputModelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodel")
+        
+        // Verifica che il file esista
+        guard fileManager.fileExists(atPath: csvURL.path) else {
+            print("File CSV non trovato nella cartella Documents.")
+            return
+        }
+
+        do {
+            // Carica il file CSV in un DataFrame
+            let dataFrame = try DataFrame(contentsOfCSVFile: csvURL)
+
+            // Specifica la colonna target e rimuovi eventuali colonne non necessarie
+            let targetColumn = "Steps"
+            
+            // Crea il modello di regressione
+            let regressor = try MLLinearRegressor(trainingData: dataFrame, targetColumn: targetColumn)
+
+            // Salva il modello nella cartella Documents
+            try regressor.write(to: outputModelURL)
+            print("Modello salvato con successo in: \(outputModelURL)")
+        } catch {
+            print("Errore durante l'allenamento del modello: \(error.localizedDescription)")
+        }
+    }
+    
+    
+    
+
+    func loadModel() throws -> MLModel {
+        let fileManager = FileManager.default
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let modelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodel")
+        
+        // Compila il modello in .mlmodelc //possibilmente farlo async
+        let compiledModelURL = try MLModel.compileModel(at: modelURL)
+        
+        
+        // Carica il modello compilato
+        let model = try MLModel(contentsOf: compiledModelURL)
+        return model
+    }
+    
+    func makePrediction(model: MLModel, calories: Double) throws -> Int {
+        // Prepara i dati di input come dizionario
+        let input = try MLDictionaryFeatureProvider(dictionary: ["Calories": calories])
+            
+        // Esegui la previsione
+        let prediction = try model.prediction(from: input)
+            
+        // Recupera il risultato dalla colonna target (Steps)
+        let steps = prediction.featureValue(for: "Steps")!.doubleValue
+            
+        return Int(steps)
+    }
+
+    func predictSteps(forCalories calories: Double) {
+        do {
+            let model = try loadModel()
+            
+            let predictedSteps = try makePrediction(model: model, calories: calories)
+                    
+            print("Previsione: \(predictedSteps) passi per \(calories) calorie.")
+                
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+
+    
+
 
 }

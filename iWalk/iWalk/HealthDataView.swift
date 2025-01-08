@@ -35,8 +35,22 @@ struct HealthDataView: View {
                 Button {
                     healthData.saveToCSV(completion: printError)
                 } label: {
-                    Text("Fetch")
+                    Text("Salva")
                 }
+                
+                
+                Button {
+                    healthData.trainModel()
+                } label: {
+                    Text("Allena")
+                }
+                
+                Button {
+                    healthData.predictSteps(forCalories: 700.0)
+                } label: {
+                    Text("Prevedi")
+                }
+                
                 List(healthData.data, id: \.date) { record in
                     HStack {
                         Text(formatDate(date: record.date))
