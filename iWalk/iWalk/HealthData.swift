@@ -7,7 +7,9 @@
 
 import Foundation
 import HealthKit
+//#if canImport(CreateML)
 import CreateML
+
 import CoreML
 import TabularData
 
@@ -180,11 +182,14 @@ class HealthData: ObservableObject {
             // Specifica la colonna target e rimuovi eventuali colonne non necessarie
             let targetColumn = "Steps"
             
+            
             // Crea il modello di regressione
             let regressor = try MLLinearRegressor(trainingData: dataFrame, targetColumn: targetColumn)
+            
 
             // Salva il modello nella cartella Documents
             try regressor.write(to: outputModelURL)
+            
             print("Modello salvato con successo in: \(outputModelURL)")
         } catch {
             print("Errore durante l'allenamento del modello: \(error.localizedDescription)")
