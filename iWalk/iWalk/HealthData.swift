@@ -7,9 +7,9 @@
 
 import Foundation
 import HealthKit
-//#if canImport(CreateML)
+#if canImport(CreateML)
 import CreateML
-
+#endif
 import CoreML
 import TabularData
 
@@ -164,6 +164,7 @@ class HealthData: ObservableObject {
     
     
     func trainModel() {
+        #if canImport(CreateML)
         let fileManager = FileManager.default
         let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         let csvURL = documentsDirectory.appendingPathComponent("HealthData.csv")
@@ -194,6 +195,7 @@ class HealthData: ObservableObject {
         } catch {
             print("Errore durante l'allenamento del modello: \(error.localizedDescription)")
         }
+        #endif
     }
     
     

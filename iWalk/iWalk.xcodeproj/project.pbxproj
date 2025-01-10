@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		629C63112D3127BF00C7FA0C /* SwiftDotenv in Frameworks */ = {isa = PBXBuildFile; productRef = 629C63102D3127BF00C7FA0C /* SwiftDotenv */; };
 		62FA49982D2EBE3000CAF846 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 62FA49972D2EBE3000CAF846 /* OpenAI */; };
 /* End PBXBuildFile section */
 
@@ -40,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				629C63112D3127BF00C7FA0C /* SwiftDotenv in Frameworks */,
 				62FA49982D2EBE3000CAF846 /* OpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -84,6 +86,7 @@
 			name = iWalk;
 			packageProductDependencies = (
 				62FA49972D2EBE3000CAF846 /* OpenAI */,
+				629C63102D3127BF00C7FA0C /* SwiftDotenv */,
 			);
 			productName = iWalk;
 			productReference = 622A141A2D2BE29000E428FD /* iWalk.app */;
@@ -115,6 +118,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				62FA49962D2EBE3000CAF846 /* XCRemoteSwiftPackageReference "OpenAI" */,
+				629C630F2D3127BF00C7FA0C /* XCRemoteSwiftPackageReference "swift-dotenv" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 622A141B2D2BE29000E428FD /* Products */;
@@ -356,6 +360,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		629C630F2D3127BF00C7FA0C /* XCRemoteSwiftPackageReference "swift-dotenv" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/thebarndog/swift-dotenv";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.0;
+			};
+		};
 		62FA49962D2EBE3000CAF846 /* XCRemoteSwiftPackageReference "OpenAI" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/MacPaw/OpenAI.git";
@@ -367,6 +379,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		629C63102D3127BF00C7FA0C /* SwiftDotenv */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 629C630F2D3127BF00C7FA0C /* XCRemoteSwiftPackageReference "swift-dotenv" */;
+			productName = SwiftDotenv;
+		};
 		62FA49972D2EBE3000CAF846 /* OpenAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 62FA49962D2EBE3000CAF846 /* XCRemoteSwiftPackageReference "OpenAI" */;
