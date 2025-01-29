@@ -14,7 +14,7 @@ import CoreML
 import TabularData
 
 class HealthData: ObservableObject {
-    @Published var data: [(date: Date, steps: Int, calories: Double)]
+    @Published var data: [(date: Date, steps: Int, calories: Int)]
     private var healthStore: HKHealthStore?
     
     init() {
@@ -112,14 +112,14 @@ class HealthData: ObservableObject {
     }
     
     // Funzione per combinare i dati di passi e calorie
-    private func combineStepsAndCalories(steps: [Date: Double], calories: [Date: Double]) -> [(date: Date, steps: Int, calories: Double)] {
-        var combinedData: [(date: Date, steps: Int, calories: Double)] = []
+    private func combineStepsAndCalories(steps: [Date: Double], calories: [Date: Double]) -> [(date: Date, steps: Int, calories: Int)] {
+        var combinedData: [(date: Date, steps: Int, calories: Int)] = []
         
         let allDates = Set(steps.keys).union(calories.keys)
         
         for date in allDates {
             if let stepCount = steps[date], let calorieCount = calories[date] {
-                combinedData.append((date: date, steps: Int(stepCount), calories: calorieCount))
+                combinedData.append((date: date, steps: Int(stepCount), calories: Int(calorieCount)))
             }
         }
         
