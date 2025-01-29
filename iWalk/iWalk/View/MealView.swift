@@ -25,66 +25,77 @@ struct MealView: View {
     @StateObject private var gpt = GPT()
     
     var body: some View {
-        VStack {
-            HStack {
-                Image(systemName: "carrot")
-                    .foregroundStyle(.orange)
-                    .font(.title)
-                    .bold()
-                Text("Pasti")
-                    .font(.largeTitle)
-                    .bold()
-                Spacer()
-                Text("Totale: \(meals.reduce(0) { $0 + $1.kcal }) kcal")
-            }
+        
+        NavigationStack {
             ScrollView {
-                VStack(spacing: 10) {
-                    MealField(label: "Colazione",
-                              meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast,
-                              gpt: gpt)
-                    
-                    Divider()
-                        .frame(height: 1)
-                        .background(.secondary.opacity(0.2))
-                    
-                    
-                    MealField(label: "Snack mattutino",
-                              meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack,
-                              gpt: gpt)
-                    
-                    Divider()
-                        .frame(height: 1)
-                        .background(.secondary.opacity(0.2))
-                    
-                    
-                    MealField(label: "Pranzo",
-                              meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch,
-                              gpt: gpt)
-                    
-                    Divider()
-                        .frame(height: 1)
-                        .background(.secondary.opacity(0.2))
-                    
-                    MealField(label: "Snack pomeridiano",
-                              meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack,
-                              gpt: gpt)
-                    
-                    Divider()
-                        .frame(height: 1)
-                        .background(.secondary.opacity(0.2))
-                    
-                    MealField(label: "Cena",
-                              meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner,
-                              gpt: gpt)
-                }
+                Spacer()
                 
+                MealField(label: "Colazione",
+                          meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast,
+                          gpt: gpt)
+                
+                CustomDivider()
+                
+                MealField(label: "Snack mattutino",
+                          meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack,
+                          gpt: gpt)
+                
+                CustomDivider()
+                
+                MealField(label: "Pranzo",
+                          meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch,
+                          gpt: gpt)
+                
+                CustomDivider()
+                
+                MealField(label: "Snack pomeridiano",
+                          meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack,
+                          gpt: gpt)
+                
+                CustomDivider()
+                
+                MealField(label: "Cena",
+                          meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner,
+                          gpt: gpt)
+            }
+            .padding(.horizontal)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack {
+                        Image(systemName: "carrot")
+                            .foregroundStyle(.tint)
+                            .font(.title)
+                            .bold()
+                        Text("Pasti")
+                            .font(.largeTitle)
+                            .bold()
+                        Spacer()
+                        Text("Totale: \(meals.reduce(0) { $0 + $1.kcal }) kcal")
+                    }
+                    .padding(.bottom, 10)
+                }
             }
         }
-        .padding(.horizontal)
+        
+    }
+    
+}
+
+
+struct CustomDivider: View {
+    var color: Color = .secondary.opacity(0.2)
+    var height: CGFloat = 1
+
+    var body: some View {
+        Divider()
+            .frame(height: height)
+            .background(color)
     }
 }
 
-struct MealField: View {
+
+/*struct MealField: View {
     let label: String
     
     @Bindable var meal: Meal
@@ -106,7 +117,7 @@ struct MealField: View {
     }
     
     var body: some View {
-        VStack{
+        VStack {
             HStack {
                 Text(label)
                     .font(.title)
@@ -115,7 +126,7 @@ struct MealField: View {
                     ProgressView()
                 } else {
                     Text("\(meal.kcal) kcal")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.tint)
                 }
             }
             
@@ -133,11 +144,14 @@ struct MealField: View {
                     }
                 }
         }
+        .alert(alertMessage, isPresented: $showingAlert) {
+            Button("Ok", role: .cancel) { }
+        }
     }
     
     func getKcal(of food: String) {
-        isLoading = true
         Task {
+            isLoading = true
             do {
                 meal.kcal = try await gpt.getKcal(of: food)
                 modelContext.insert(meal)
@@ -146,11 +160,11 @@ struct MealField: View {
                 alertMessage = error.localizedDescription
                 showingAlert = true
             }
+            isLoading = false
         }
-        isLoading = false
     }
     
-}
+}*/
 
 
 

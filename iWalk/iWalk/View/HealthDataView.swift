@@ -53,7 +53,7 @@ struct HealthDataView: View {
                         Spacer()
                         Text("\(record.steps) passi")
                         Spacer()
-                        Text("\(record.calories, specifier: "%.2f") kcal")
+                        Text("\(record.calories) kcal")
                     }
                 }
             }
@@ -62,7 +62,7 @@ struct HealthDataView: View {
     
     func formatDate(date: Date) -> String {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "dd/MM/yyyy"  // Imposta il formato desiderato
+        dateFormatter.dateFormat = "dd/MM/yyyy"
         return dateFormatter.string(from: date)
     }
     

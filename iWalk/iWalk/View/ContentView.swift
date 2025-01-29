@@ -30,8 +30,12 @@ struct ContentView: View {
         }
         .tint({
             switch selectedTab {
+            case 0:
+                return Color.green
             case 1:
                 return Color.orange
+            case 2:
+                return Color.blue
             default:
                 return Color.accentColor
             }
