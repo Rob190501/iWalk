@@ -9,40 +9,54 @@
 import SwiftUI
 
 struct HealthDataView: View {
-    @State private var errorMessage: String?
+    //@State private var errorMessage: String?
     @ObservedObject private var healthData = HealthData()
+    
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     
     var body: some View {
         VStack {
-            if let errorMessage = errorMessage {
-                Text("Errore: \(errorMessage)")
-                    .foregroundColor(.red)
-            } else if healthData.data.isEmpty {
+            if healthData.data.isEmpty {
                 Text("Nessun dato disponibile")
                     .foregroundColor(.gray)
                 
                 Button {
-                    healthData.fetchHealthData(completion: printError)
+                    do {
+                        let years = 3
+                        try healthData.fetchHealthData(since: years)
+                    }
+                    catch {
+                        alertMessage = error.localizedDescription
+                        showingAlert = true
+                    }
                 } label: {
                     Text("Fetch")
                 }
                 
             } else {
                 Button {
-                    healthData.saveToCSV(completion: printError)
+                    do {
+                        try healthData.saveCSVandCreateModel()
+                    }
+                    catch {
+                        alertMessage = error.localizedDescription
+                        showingAlert = true
+                    }
                 } label: {
-                    Text("Salva")
+                    Text("Salva e crea modello")
                 }
                 
-                
                 Button {
-                    healthData.trainModel()
-                } label: {
-                    Text("Allena")
-                }
-                
-                Button {
-                    healthData.predictSteps(forCalories: 700.0)
+                    do {
+                        let kcal = 768
+                        let steps = try healthData.predictSteps(forCalories: kcal)
+                        alertMessage = "\(steps) passi per \(kcal) kcal"
+                    }
+                    catch {
+                        alertMessage = error.localizedDescription
+                    }
+                    showingAlert = true
                 } label: {
                     Text("Prevedi")
                 }
@@ -58,16 +72,15 @@ struct HealthDataView: View {
                 }
             }
         }
+        .alert(alertMessage, isPresented: $showingAlert) {
+            Button("Ok", role: .cancel) { }
+        }
     }
     
     func formatDate(date: Date) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "dd/MM/yyyy"
         return dateFormatter.string(from: date)
-    }
-    
-    func printError(errorMessage: String) {
-        self.errorMessage = errorMessage
     }
     
 }

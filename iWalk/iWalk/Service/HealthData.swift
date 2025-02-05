@@ -22,12 +22,9 @@ class HealthData: ObservableObject {
         healthStore = HKHealthStore()
     }
     
-    func fetchHealthData(completion: @escaping (String) -> Void) {
-        guard let healthStore = healthStore else {
-            DispatchQueue.main.async {
-                completion("HealthStore non è inizializzato.")
-            }
-            return
+    func fetchHealthData(since years: Int) throws {
+        guard let healthStore else {
+            throw CustomError.healthStoreNotInitialized
         }
         
         // Definizione dei tipi di dati da leggere
@@ -39,42 +36,27 @@ class HealthData: ObservableObject {
         healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
             if success {
                 Task {
-                    do {
-                        // 2. Recupera i dati
-                        let steps = try await self.fetchDailyData(for: stepsType, unit: .count())
-                        let calories = try await self.fetchDailyData(for: caloriesType, unit: .kilocalorie())
-                        
-                        // 3. Combina i dati
-                        let combinedData = self.combineStepsAndCalories(steps: steps, calories: calories)
-                        
-                        // assegnamento dati recuperati
-                        DispatchQueue.main.async { [weak self] in
-                            self?.data = combinedData
-                        }
-                        
-                    } catch {
-                        // aggiornamento UI nel thread principale
-                        DispatchQueue.main.async {
-                            completion(error.localizedDescription)
-                        }
+                    // 2. Recupera i dati
+                    let steps = try await self.fetchDailyData(for: stepsType, unit: .count(), since: years)
+                    let calories = try await self.fetchDailyData(for: caloriesType, unit: .kilocalorie(), since: years)
+                    
+                    // 3. Combina ed assegna i dati recuperati
+                    DispatchQueue.main.async {
+                        self.data = self.combineStepsAndCalories(steps: steps, calories: calories)
                     }
-                }
-            } else if let error = error {
-                DispatchQueue.main.async {
-                    completion(error.localizedDescription)
                 }
             }
         }
     }
     
     // Funzione per recuperare i dati giornalieri di un tipo specifico
-    private func fetchDailyData(for type: HKQuantityType, unit: HKUnit) async throws -> [Date: Double] {
-        guard let healthStore = healthStore else {
-            return [:]
+    private func fetchDailyData(for type: HKQuantityType, unit: HKUnit, since years: Int) async throws -> [Date: Double] {
+        guard let healthStore else {
+            throw CustomError.healthStoreNotInitialized
         }
         
         let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .year, value: -2, to: Date())!
+        let startDate = calendar.date(byAdding: .year, value: years * -1, to: Date())!
         let endDate = Date()
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
@@ -90,7 +72,7 @@ class HealthData: ObservableObject {
             )
             
             query.initialResultsHandler = { _, results, error in
-                if let error = error {
+                if let error {
                     continuation.resume(throwing: error)
                     return
                 }
@@ -111,15 +93,16 @@ class HealthData: ObservableObject {
         }
     }
     
-    // Funzione per combinare i dati di passi e calorie
     private func combineStepsAndCalories(steps: [Date: Double], calories: [Date: Double]) -> [(date: Date, steps: Int, calories: Int)] {
         var combinedData: [(date: Date, steps: Int, calories: Int)] = []
         
         let allDates = Set(steps.keys).union(calories.keys)
         
         for date in allDates {
-            if let stepCount = steps[date], let calorieCount = calories[date] {
-                combinedData.append((date: date, steps: Int(stepCount), calories: Int(calorieCount)))
+            if let dailySteps = steps[date], let dailyCalories = calories[date] {
+                if dailyCalories >= 1 {
+                    combinedData.append((date: date, steps: Int(dailySteps), calories: Int(dailyCalories)))
+                }
             }
         }
         
@@ -128,17 +111,13 @@ class HealthData: ObservableObject {
         }
     }
     
-    
-    func saveToCSV(completion: @escaping (String) -> Void) {
+    func saveToCSV() throws {
         // Percorso del file nella directory Documents
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            completion("Impossibile trovare la directory Documents.")
-            return
+            throw CustomError.documentsFolderNotFound
         }
             
         let fileURL = documentsURL.appendingPathComponent("HealthData.csv")
-        //let fileURL = documentsURL.appendingPathComponent("HealthData.csv")
-            print("Percorso del file CSV: \(fileURL.path)")
         
         // Creazione del contenuto CSV
         var csvText = "Steps,Calories\n" // Header CSV
@@ -148,74 +127,77 @@ class HealthData: ObservableObject {
             csvText.append(csvLine)
         }
         
-        do {
-            // Scrittura del file
-            try csvText.write(to: fileURL, atomically: true, encoding: .utf8)
-            
-        } catch {
-            completion("Errore durante il salvataggio del file: \(error.localizedDescription)")
-        }
+        // Scrittura del file
+        try csvText.write(to: fileURL, atomically: true, encoding: .utf8)
     }
     
-    
-    
-    
-    
-    
-    
-    func trainModel() {
+    func createModel() async throws {
         #if canImport(CreateML)
         let fileManager = FileManager.default
         let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         let csvURL = documentsDirectory.appendingPathComponent("HealthData.csv")
         let outputModelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodel")
+        let compiledModelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodelc")
         
         // Verifica che il file esista
         guard fileManager.fileExists(atPath: csvURL.path) else {
-            print("File CSV non trovato nella cartella Documents.")
-            return
+            throw CustomError.csvNotFound
         }
 
-        do {
-            // Carica il file CSV in un DataFrame
-            let dataFrame = try DataFrame(contentsOfCSVFile: csvURL)
-
-            // Specifica la colonna target e rimuovi eventuali colonne non necessarie
-            let targetColumn = "Steps"
-            
-            
-            // Crea il modello di regressione
-            let regressor = try MLLinearRegressor(trainingData: dataFrame, targetColumn: targetColumn)
-            
-
-            // Salva il modello nella cartella Documents
-            try regressor.write(to: outputModelURL)
-            
-            print("Modello salvato con successo in: \(outputModelURL)")
-        } catch {
-            print("Errore durante l'allenamento del modello: \(error.localizedDescription)")
+        // Carica il file CSV in un DataFrame
+        let dataFrame = try DataFrame(contentsOfCSVFile: csvURL)
+        
+        // Crea il modello di regressione
+        let outputModel = try MLLinearRegressor(trainingData: dataFrame, targetColumn: "Steps")
+        
+        // Salva il modello nella cartella Documents
+        try outputModel.write(to: outputModelURL)
+        
+        // Compila il modello
+        let compiledModel = try await MLModel.compileModel(at: outputModelURL)
+        
+        // Salva il modello compilato nella cartella Documents, se ne esiste già uno lo elimina
+        if fileManager.fileExists(atPath: compiledModelURL.path) {
+            try fileManager.removeItem(at: compiledModelURL)
         }
+        try fileManager.moveItem(at: compiledModel, to: compiledModelURL)
         #endif
     }
     
-    
+    func saveCSVandCreateModel() throws {
+        try saveToCSV()
+        Task {
+            try await createModel()
+        }
+    }
     
 
     func loadModel() throws -> MLModel {
         let fileManager = FileManager.default
         let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        
         let modelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodel")
-        
-        // Compila il modello in .mlmodelc //possibilmente farlo async
-        let compiledModelURL = try MLModel.compileModel(at: modelURL)
-        
-        
-        // Carica il modello compilato
-        let model = try MLModel(contentsOf: compiledModelURL)
-        return model
+        let compiledModelURL = documentsDirectory.appendingPathComponent("StepsPredictor.mlmodelc")
+
+        // Se il modello è già compilato, lo si carica direttamente
+        if fileManager.fileExists(atPath: compiledModelURL.path) {
+            return try MLModel(contentsOf: compiledModelURL)
+        }
+
+        // Altrimenti, lo si compila e lo si salva
+        let compiledURL = try MLModel.compileModel(at: modelURL)
+        // fare il fetch e poi il train
+
+        try fileManager.moveItem(at: compiledURL, to: compiledModelURL)
+
+        // Ora carico il modello compilato
+        return try MLModel(contentsOf: compiledModelURL)
     }
+
     
-    func makePrediction(model: MLModel, calories: Double) throws -> Int {
+    
+    
+    func makePrediction(model: MLModel, calories: Int) throws -> Int {
         // Prepara i dati di input come dizionario
         let input = try MLDictionaryFeatureProvider(dictionary: ["Calories": calories])
             
@@ -228,17 +210,12 @@ class HealthData: ObservableObject {
         return Int(steps)
     }
 
-    func predictSteps(forCalories calories: Double) {
-        do {
-            let model = try loadModel()
+    func predictSteps(forCalories calories: Int) throws -> Int {
+        let model = try loadModel()
             
-            let predictedSteps = try makePrediction(model: model, calories: calories)
+        let predictedSteps = try makePrediction(model: model, calories: calories)
                     
-            print("Previsione: \(predictedSteps) passi per \(calories) calorie.")
-                
-        } catch {
-            print(error.localizedDescription)
-        }
+        return predictedSteps
     }
 
     
