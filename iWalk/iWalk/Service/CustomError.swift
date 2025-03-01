@@ -13,6 +13,7 @@ enum CustomError: LocalizedError {
     case emptyFetchError
     case documentsFolderNotFound
     case csvNotFound
+    case HKAuthorizationFailed
     case custom(message: String)
 
     var errorDescription: String {
@@ -29,6 +30,9 @@ enum CustomError: LocalizedError {
             
         case .csvNotFound:
             return "Impossibile trovare il file .csv"
+            
+        case .HKAuthorizationFailed:
+            return "È necessario consentire l'accesso ai dati sanitari"
         
         case .custom(let message):
             return message

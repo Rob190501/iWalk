@@ -12,6 +12,10 @@ import SwiftData
 struct MealView: View {
     @Query private var meals: [Meal]
     
+    private var kcals: Int {
+        meals.reduce(0) { $0 + $1.kcal }
+    }
+    
     private let sampleBreakfast = Meal(mealTime: .breakfast, details: "", kcal: 0)
     
     private let sampleMorningSnack = Meal(mealTime: .morningSnack, details: "", kcal: 0)
@@ -28,41 +32,44 @@ struct MealView: View {
         
         NavigationStack {
             ScrollView {
-                Spacer()
-                
-                MealField(label: "Colazione",
-                          meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast,
-                          gpt: gpt)
-                
-                CustomDivider()
-                
-                MealField(label: "Snack mattutino",
-                          meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack,
-                          gpt: gpt)
-                
-                CustomDivider()
-                
-                MealField(label: "Pranzo",
-                          meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch,
-                          gpt: gpt)
-                
-                CustomDivider()
-                
-                MealField(label: "Snack pomeridiano",
-                          meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack,
-                          gpt: gpt)
-                
-                CustomDivider()
-                
-                MealField(label: "Cena",
-                          meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner,
-                          gpt: gpt)
+                VStack {
+                    MealField(label: "Colazione",
+                              meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast,
+                              gpt: gpt)
+                    
+                    CustomDivider()
+                    
+                    MealField(label: "Snack mattutino",
+                              meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack,
+                              gpt: gpt)
+                    
+                    CustomDivider()
+                    
+                    MealField(label: "Pranzo",
+                              meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch,
+                              gpt: gpt)
+                    
+                    CustomDivider()
+                    
+                    MealField(label: "Snack pomeridiano",
+                              meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack,
+                              gpt: gpt)
+                    
+                    CustomDivider()
+                    
+                    MealField(label: "Cena",
+                              meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner,
+                              gpt: gpt)
+                }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
-            .navigationBarTitleDisplayMode(.inline)
-            .customToolbar(icon: "carrot", title: "Pasti") {
-                Text("Totale: \(meals.reduce(0) { $0 + $1.kcal }) kcal")
+            //.navigationBarTitleDisplayMode(.inline)
+            .customNSToolbar(title: "Pasti") {
+                Image(systemName: "carrot")
+            } customView: {
+                Text("Totale: \(kcals) kcal")
             }
+            
         }
         
     }

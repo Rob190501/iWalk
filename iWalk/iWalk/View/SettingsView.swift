@@ -13,11 +13,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                SettingsRow(icon: "gearshape.fill", color: .gray, title: "Generali", destination: Text("Hello"))
+                SettingsRow(icon: "gearshape.fill", color: .accentColor, title: "Nuovo modello", destination: NewModelView())
                 SettingsRow(icon: "gearshape.fill", color: .gray, title: "Generali", destination: Text("Hello"))
                 SettingsRow(icon: "gearshape.fill", color: .gray, title: "Generali", destination: Text("Hello"))
             }
-            .customToolbar(icon: "gear", title: "Impostazioni")
+            .customNSToolbar(title: "Impostazioni") {
+                Image(systemName: "gear")
+            }
         }
     }
 }
@@ -38,7 +40,7 @@ struct SettingsRow<Destination: View>: View {
                     .scaledToFit()
                     .frame(width: 30, height: 30)
                     .padding(6)
-                    .background(color)
+                    .background(.tint)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    private var healthData = HealthData()
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -22,10 +23,6 @@ struct ContentView: View {
             
             Tab("Impostazioni", systemImage: "gear", value: 2) {
                 SettingsView()
-            }
-            
-            Tab("Test", systemImage: "warninglight", value: 3) {
-                HealthDataView()
             }
         }
         .tint({

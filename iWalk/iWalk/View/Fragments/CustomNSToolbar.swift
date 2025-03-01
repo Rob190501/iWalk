@@ -6,36 +6,27 @@
 //
 import SwiftUI
 
-struct ToolbarModifier<CustomView: View>: ViewModifier {
-    var icon: String
+struct CustomNSToolbar<CustomIcon: View, CustomView: View>: ViewModifier {
+    
     var title: String
+    var customIcon: () -> CustomIcon
     var customView: (() -> CustomView)?
     
     private var placement: ToolbarItemPlacement {
         customView == nil ? .topBarLeading : .principal
     }
-    
-    init(icon: String, title: String) where CustomView == EmptyView {
-        self.icon = icon
-        self.title = title
-        self.customView = nil
-    }
-    
-    init(icon: String, title: String, customView: @escaping () -> CustomView) {
-        self.icon = icon
-        self.title = title
-        self.customView = customView
-    }
 
     func body(content: Content) -> some View {
         content
+            .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: placement) {
                     HStack {
-                        Image(systemName: icon)
+                        customIcon()
                             .foregroundStyle(.tint)
                             .font(.title)
                             .bold()
+                        
                         Text(title)
                             .font(.largeTitle)
                             .bold()
@@ -52,16 +43,19 @@ struct ToolbarModifier<CustomView: View>: ViewModifier {
 
 
 extension View {
-    func customToolbar<CustomView: View>(
-        icon: String,
+    func customNSToolbar<CustomIcon: View, CustomView: View>(
         title: String,
-        customView: @escaping () -> CustomView
+        @ViewBuilder customIcon: @escaping () -> CustomIcon,
+        @ViewBuilder customView: @escaping () -> CustomView
     ) -> some View {
-        self.modifier(ToolbarModifier(icon: icon, title: title, customView: customView))
+        self.modifier(CustomNSToolbar(title: title, customIcon: customIcon, customView: customView))
     }
     
     
-    func customToolbar(icon: String, title: String) -> some View {
-        self.modifier(ToolbarModifier<EmptyView>(icon: icon, title: title))
+    func customNSToolbar<CustomIcon: View>(
+        title: String,
+        @ViewBuilder customIcon: @escaping () -> CustomIcon
+    ) -> some View {
+        self.modifier(CustomNSToolbar<CustomIcon, EmptyView>(title: title, customIcon: customIcon, customView: nil))
     }
 }
