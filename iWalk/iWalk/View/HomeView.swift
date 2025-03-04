@@ -24,8 +24,6 @@ struct HomeView: View {
     
     @State private var showPicker = false
     
-    @State private var batteryLevel = 50.0
-    
     private var kcalsToBurn: Int {
         kcal - target > 0 ? kcal - target : 0
     }
@@ -69,7 +67,7 @@ struct HomeView: View {
                                     }
                                 } label: {
                                     HStack {
-                                        Text("Target:")
+                                        Text("Obiettivo:")
                                             .foregroundStyle(Color.primary)
                                         Text("\(target) kcal")
                                             .blurredBackgorund()
@@ -89,10 +87,21 @@ struct HomeView: View {
                                     .pickerStyle(.wheel)
                                     .frame(height: 150)
                                     .transition(.opacity)
+                                    .onChange(of: target) {
+                                        withAnimation {
+                                            updateData()
+                                        }
+                                        
+                                    }
                                 }
                                 
-                                Text("fare \(stepsToDo) passi per bruciare \(kcalsToBurn) kcal")
-                                
+                                if(kcalsToBurn == 0) {
+                                    Text("Obiettivo raggiunto!")
+                                        .foregroundStyle(.tint)
+                                        .blurredBackgorund()
+                                } else {
+                                    Text("Devi fare ancora \(stepsToDo) passi per bruciare \(kcalsToBurn) kcal")
+                                }
                                 
                                 
                             }
@@ -112,7 +121,9 @@ struct HomeView: View {
                         updateData()
                     }
                     .refreshable {
-                        updateData()
+                        withAnimation {
+                            updateData()
+                        }
                     }
                 }
             }
@@ -141,6 +152,8 @@ struct HomeView: View {
                 
             }
         }
+        
+        stepsToDo -= steps
     }
     
 }

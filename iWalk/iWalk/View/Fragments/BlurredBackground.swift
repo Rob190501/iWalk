@@ -17,7 +17,7 @@ struct BlurredBackground: ViewModifier {
                 GeometryReader { proxy in
                     RoundedRectangle(cornerRadius: 5)
                         .foregroundStyle(colorScheme == .dark ? .black : .white)
-                        .frame(width: proxy.size.width + 10, height: proxy.size.height + 5)
+                        .frame(width: proxy.size.width + 6, height: proxy.size.height)
                         .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
                     .blur(radius: 10)
                 }
