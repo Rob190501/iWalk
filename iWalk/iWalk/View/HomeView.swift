@@ -10,37 +10,23 @@ import SwiftData
 
 struct HomeView: View {
     
-    @Query private var meals: [Meal]
-    
-    private var kcal: Int {
-        meals.reduce(0) { $0 + $1.kcal }
-    }
-    
-    @AppStorage("targetCalories") private var target = 1000
-    
     private let healthData = HealthData()
     
-    @State private var steps = 0
+    @Query private var meals: [Meal]
     
-    @State private var showPicker = false
-    
-    private var kcalsToBurn: Int {
-        kcal - target > 0 ? kcal - target : 0
-    }
-    
-    
-    var attributedString: AttributedString {
-        var string = AttributedString("Questa è una frase con parola colorata alla fine.")
-        if let range = string.range(of: "parola colorata") {
-            string[range].foregroundColor = .red
-        }
-        return string
-    }
-    
-    
+    @State private var todaySteps = 0
     
     @State private var stepsToDo = 0
     
+    @AppStorage("targetKcals") private var target = 1000
+    
+    private var todayKcals: Int {
+        meals.reduce(0) { $0 + $1.kcal }
+    }
+    
+    private var kcalsToBurn: Int {
+        todayKcals - target > 0 ? todayKcals - target : 0
+    }
     
     
     
@@ -55,70 +41,20 @@ struct HomeView: View {
                             
                             Spacer().containerRelativeFrame([.horizontal, .vertical])
                             
-                            VStack(spacing: 50) {
+                            VStack(spacing: 70) {
+                                TodayDataView(kcal: todayKcals, steps: todaySteps)
                                 
-                                Text("Oggi hai assunto \(kcal) kcal")
+                                TargetPickerView(target: $target, updateData: updateData)
                                 
-                                Text("e hai fatto \(steps) passi")
-                                
-                                Button {
-                                    withAnimation {
-                                        showPicker.toggle()
-                                    }
-                                } label: {
-                                    HStack {
-                                        Text("Obiettivo:")
-                                            .foregroundStyle(Color.primary)
-                                        Text("\(target) kcal")
-                                            .blurredBackgorund()
-                                        Image(systemName: "chevron.up")
-                                            .blurredBackgorund()
-                                            .rotationEffect(.degrees(showPicker ? 180 : 0))
-                                    }
-                                }
-                                
-                                if showPicker {
-                                    Picker("Seleziona kcal", selection: $target) {
-                                        ForEach(Array(stride(from: 1000, through: 3000, by: 200)), id: \.self) { value in
-                                            Text("\(value) kcal")
-                                                .font(.title)
-                                        }
-                                    }
-                                    .pickerStyle(.wheel)
-                                    .frame(height: 150)
-                                    .transition(.opacity)
-                                    .onChange(of: target) {
-                                        withAnimation {
-                                            updateData()
-                                        }
-                                        
-                                    }
-                                }
-                                
-                                if(kcalsToBurn == 0) {
-                                    Text("Obiettivo raggiunto!")
-                                        .foregroundStyle(.tint)
-                                        .blurredBackgorund()
-                                } else {
-                                    Text("Devi fare ancora \(stepsToDo) passi per bruciare \(kcalsToBurn) kcal")
-                                }
-                                
-                                
+                                TargetView(kcalsToBurn: kcalsToBurn, stepsToDo: stepsToDo)
                             }
                             .font(.title)
                             .bold()
                             .padding()
-                            
+                            .onAppear {
+                                updateData()
+                            }
                         }
-                        
-                        
-                    }
-                    .customNSToolbar(title: "iWalk") {
-                        Image(systemName: "figure.walk")
-                            .blurredBackgorund()
-                    }
-                    .onAppear {
-                        updateData()
                     }
                     .refreshable {
                         withAnimation {
@@ -126,11 +62,12 @@ struct HomeView: View {
                         }
                     }
                 }
+                .customNSToolbar(title: "iWalk") {
+                    Image(systemName: "figure.walk")
+                        .blurredBackgorund()
+                }
             }
         }
-        
-        
-        
     }
     
     
@@ -146,14 +83,107 @@ struct HomeView: View {
                 let tempSteps = try await healthData.fetchTodaySteps()
                 
                 DispatchQueue.main.async {
-                    steps = tempSteps
+                    todaySteps = tempSteps
+                    stepsToDo -= todaySteps
                 }
             } catch {
                 
             }
         }
+    }
+    
+    
+    
+    struct TodayDataView: View {
+        var kcal: Int
+        var steps: Int
         
-        stepsToDo -= steps
+        var body: some View {
+            VStack(spacing: 20) {
+                HStack {
+                    Text("Oggi hai assunto ")
+                    Text("\(kcal) kcal")
+                        .blurredBackgorund()
+                }
+                
+                HStack {
+                    Text("e hai fatto ")
+                    Text("\(steps) passi")
+                        .blurredBackgorund()
+                }
+            }
+        }
+    }
+    
+    struct TargetPickerView: View {
+        @Binding var target: Int
+        @State private var showPicker = false
+        var updateData: () -> Void
+        
+        var body: some View {
+            VStack(spacing: 20) {
+                Text("Apporto energetico desiderato:")
+                    .multilineTextAlignment(.center)
+                Button {
+                    withAnimation {
+                        showPicker.toggle()
+                    }
+                } label: {
+                    HStack {
+                        Text("\(target) kcal")
+                            
+                        Image(systemName: "chevron.up")
+                            .rotationEffect(.degrees(showPicker ? 180 : 0))
+                    }
+                    .blurredBackgorund()
+                }
+                
+                if showPicker {
+                    Picker("Seleziona kcal", selection: $target) {
+                        ForEach(Array(stride(from: 1000, through: 3000, by: 100)), id: \.self) { value in
+                            Text("\(value) kcal")
+                                .font(.title)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 150)
+                    .transition(.opacity)
+                    .onChange(of: target) {
+                        withAnimation {
+                            updateData()
+                        }
+                    }
+                }
+                
+            }
+        }
+        
+    }
+    
+    struct TargetView: View {
+        var kcalsToBurn: Int
+        var stepsToDo: Int
+        
+        var body: some View {
+            if kcalsToBurn == 0 || stepsToDo < 1 {
+                Text("Obiettivo raggiunto!")
+                    .blurredBackgorund()
+            } else {
+                VStack(spacing: 20) {
+                    HStack {
+                        Text("Devi fare ancora ")
+                        Text("\(stepsToDo) passi")
+                            .blurredBackgorund()
+                    }
+                    
+                    HStack {
+                        Text("per bruciare")
+                        Text("\(kcalsToBurn) kcal")
+                            .blurredBackgorund()
+                    }
+                }
+            }
+        }
     }
     
 }

@@ -13,6 +13,7 @@ struct BlurredBackground: ViewModifier {
     
     func body(content: Content) -> some View {
         content
+            .foregroundStyle(.tint)
             .background(
                 GeometryReader { proxy in
                     RoundedRectangle(cornerRadius: 5)

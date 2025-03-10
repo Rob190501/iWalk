@@ -22,7 +22,14 @@ struct NewModelView: View {
     
     @State private var isFetching = false
     
-    @State private var data: [(date: Date, steps: Int, calories: Int)] = []
+    @State private var data: [(date: Date, steps: Int, flights: Int, calories: Int)] = []
+    
+    let columns = [
+        //GridItem(.flexible(), alignment: .center),
+        GridItem(.flexible(), alignment: .center),
+        GridItem(.flexible(), alignment: .center),
+        GridItem(.flexible(), alignment: .center)
+    ]
     
     var body: some View {
         NavigationStack {
@@ -91,8 +98,11 @@ struct NewModelView: View {
                             Spacer()
                             Text("\(record.steps) passi")
                             Spacer()
+                            Text("\(record.flights) piani")
+                            Spacer()
                             Text("\(record.calories) kcal")
                         }
+                        .font(.footnote)
                     }
                 }
             }
