@@ -18,14 +18,13 @@ struct MealField: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     
-    @ObservedObject var gpt: GPT
+    private let calorieBot = CalorieBot.shared
     
     @Environment(\.modelContext) private var modelContext
     
-    init(label: String, meal: Meal, gpt: GPT) {
+    init(label: String, meal: Meal) {
         self.label = label
         self.meal = meal
-        self.gpt = gpt
     }
     
     var body: some View {
@@ -65,7 +64,7 @@ struct MealField: View {
         Task {
             isLoading = true
             do {
-                meal.kcal = try await gpt.getKcal(of: food)
+                meal.kcal = try await calorieBot.getKcal(of: food)
                 modelContext.insert(meal)
                 try modelContext.save()
             } catch {
@@ -80,7 +79,6 @@ struct MealField: View {
 
 #Preview {
     let sampleBreakfast = Meal(mealTime: .breakfast, details: "", kcal: 0)
-    let gpt = GPT()
-    MealField(label: "Colazione", meal: sampleBreakfast, gpt: gpt)
+    MealField(label: "Colazione", meal: sampleBreakfast)
         .padding(.horizontal)
 }

@@ -26,40 +26,33 @@ struct MealView: View {
     
     private let sampleDinner = Meal(mealTime: .dinner, details: "", kcal: 0)
     
-    @StateObject private var gpt = GPT()
-    
     var body: some View {
         
         NavigationStack {
             ScrollView {
                 VStack {
                     MealField(label: "Colazione",
-                              meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast,
-                              gpt: gpt)
+                              meal: meals.filter { $0.mealTime == MealTime.breakfast.rawValue }.first ?? sampleBreakfast)
                     
                     CustomDivider()
                     
                     MealField(label: "Snack mattutino",
-                              meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack,
-                              gpt: gpt)
+                              meal: meals.filter { $0.mealTime == MealTime.morningSnack.rawValue }.first ?? sampleMorningSnack)
                     
                     CustomDivider()
                     
                     MealField(label: "Pranzo",
-                              meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch,
-                              gpt: gpt)
+                              meal: meals.filter { $0.mealTime == MealTime.lunch.rawValue }.first ?? sampleLunch)
                     
                     CustomDivider()
                     
                     MealField(label: "Snack pomeridiano",
-                              meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack,
-                              gpt: gpt)
+                              meal: meals.filter { $0.mealTime == MealTime.afternoonSnack.rawValue }.first ?? sampleAfternoonSnack)
                     
                     CustomDivider()
                     
                     MealField(label: "Cena",
-                              meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner,
-                              gpt: gpt)
+                              meal: meals.filter { $0.mealTime == MealTime.dinner.rawValue }.last ?? sampleDinner)
                 }
                 .padding(.horizontal)
             }
