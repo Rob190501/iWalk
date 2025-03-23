@@ -10,12 +10,20 @@ import Foundation
 enum CustomError: LocalizedError {
     
     case healthStoreNotInitialized
+    
     case emptyFetchError
+    
     case documentsFolderNotFound
+    
     case csvNotFound
+    
     case HKAuthorizationFailed
+    
     case custom(message: String)
 
+    case modelNotInitialized
+    
+    
     var errorDescription: String {
         switch self {
             
@@ -33,6 +41,9 @@ enum CustomError: LocalizedError {
             
         case .HKAuthorizationFailed:
             return "È necessario consentire l'accesso ai dati sanitari"
+            
+        case .modelNotInitialized:
+            return "Modello non inizializzato"
         
         case .custom(let message):
             return message
