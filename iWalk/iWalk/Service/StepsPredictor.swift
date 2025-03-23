@@ -18,7 +18,7 @@ class StepsPredictor {
     static let shared = StepsPredictor()
     private var model: MLModel?
     
-    init() {
+    private init() {
         model = loadModel()
     }
     
@@ -48,6 +48,7 @@ class StepsPredictor {
     func saveCSVandCreateModel(data: [HealthData]) async throws {
         try saveToCSV(data: data)
         try await createModel()
+        model = loadModel()
     }
     
     private func saveToCSV(data: [HealthData]) throws {
