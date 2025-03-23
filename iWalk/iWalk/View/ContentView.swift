@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    private var healthData = HealthData()
     
     var body: some View {
         TabView(selection: $selectedTab) {
