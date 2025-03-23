@@ -13,52 +13,21 @@ import CreateML
 import CoreML
 import TabularData
 
-class HealthData {
+class HealthService {
     private var healthStore: HKHealthStore? = HKHealthStore()
     
     
     
-    /*func fetchHealthData(since years: Int, removeOutliers: Bool) throws -> [(date: Date, steps: Int, calories: Int)] {
-        guard let healthStore else {
-            throw CustomError.healthStoreNotInitialized
-        }
-        
-        // Definizione dei tipi di dati da leggere
-        let stepsType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
-        let caloriesType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
-        let readTypes: Set = [stepsType, caloriesType]
-        
-        // 1. Richiedi autorizzazione
-        healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
-            if success {
-                Task {
-                    // 2. Recupera i dati
-                    let steps = try await self.fetchDailyData(for: stepsType, unit: .count(), since: years)
-                    let calories = try await self.fetchDailyData(for: caloriesType, unit: .kilocalorie(), since: years)
-                    
-                    // 3. Combina ed assegna i dati recuperati
-                    //DispatchQueue.main.async {
-                        if(removeOutliers) {
-                            return self.removeOutliers(from: self.combineStepsAndCalories(steps: steps, calories: calories))
-                        }
-                        else {
-                            return self.combineStepsAndCalories(steps: steps, calories: calories)
-                        }
-                    //}
-                }
-            }
-        }
-    }*/
-    
-    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double) async throws -> [(date: Date, steps: Int, calories: Int)] {
+    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double) async throws -> [HealthData] {
         guard let healthStore else {
             throw CustomError.healthStoreNotInitialized
         }
 
         // Definizione dei tipi di dati da leggere
         let stepsType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        let exerciseTimeType = HKQuantityType.quantityType(forIdentifier: .appleExerciseTime)!
         let caloriesType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
-        let readTypes: Set = [stepsType, caloriesType]
+        let readTypes: Set = [stepsType, exerciseTimeType, caloriesType]
 
         // 1. Richiedi autorizzazione
         let success: Bool = try await withCheckedThrowingContinuation { continuation in
@@ -78,12 +47,13 @@ class HealthData {
 
         // 2. Recupera i dati
         let steps = try await fetchDailyData(for: stepsType, unit: .count(), since: years)
+        let exerciseMinutes = try await fetchDailyData(for: exerciseTimeType, unit: .minute(), since: years)
         let calories = try await fetchDailyData(for: caloriesType, unit: .kilocalorie(), since: years)
-
-        // 3. Combina i dati ed eventualmente rimuove gli outlier
-        let combinedData = combineStepsAndCalories(steps: steps, calories: calories)
         
-        return removeOutliers ? self.removeOutliers(from: combinedData, tolerance: tolerance) : combinedData
+        // 3. Combina i dati ed eventualmente rimuove gli outlier
+        let combinedData = combineData(steps: steps, exerciseMinutes: exerciseMinutes, calories: calories)
+        
+        return removeOutliers ? self.removeOutliers(from: combinedData/*, tolerance: tolerance*/) : combinedData
     }
     
     
@@ -112,6 +82,7 @@ class HealthData {
                 }
                 
                 var dailyData: [Date: Int] = [:]
+                
                 results?.enumerateStatistics(from: startDate, to: today) { stats, _ in
                     let date = calendar.startOfDay(for: stats.startDate)
                     dailyData[date] = Int(stats.sumQuantity()?.doubleValue(for: unit) ?? 0)
@@ -126,7 +97,7 @@ class HealthData {
     
     
     
-    private func removeOutliers(from data: [(date: Date, steps: Int, calories: Int)], tolerance: Double) -> [(date: Date, steps: Int, calories: Int)] {
+    /*private func removeOutliers(from data: [HealthData], tolerance: Double) -> [HealthData] {
         
         let tempData = data.filter { record in
             record.calories > 30
@@ -145,31 +116,117 @@ class HealthData {
             let kcalsPerStep = Double(record.calories) / Double(record.steps)
             return kcalsPerStep >= lowerBound && kcalsPerStep <= upperBound
         }
+    }*/
+    
+    private func removeOutliers(from data: [HealthData]) -> [HealthData] {
+        // Filtra i record con calorie superiori a 30
+        let filteredData = data.filter { $0.calories > 30 }
+
+        // Calcola il rapporto calorie/passi per ogni record
+        let kcalsPerStep = filteredData.map { Double($0.calories) / Double($0.steps) }
+
+        // Calcola il primo e terzo quartile
+        let sortedKcalsPerStep = kcalsPerStep.sorted()
+        let q1 = percentile(sortedKcalsPerStep, percentile: 25)
+        let q3 = percentile(sortedKcalsPerStep, percentile: 75)
+
+        // Calcola l'IQR e i limiti per gli outlier
+        let iqr = q3 - q1
+        let lowerBound = q1 - 1.5 * iqr
+        let upperBound = q3 + 1.5 * iqr
+
+        // Filtra i dati per rimuovere gli outlier
+        return filteredData.filter { record in
+            let kcalsPerStep = Double(record.calories) / Double(record.steps)
+            return kcalsPerStep >= lowerBound && kcalsPerStep <= upperBound
+        }
     }
+
+    private func percentile(_ data: [Double], percentile: Double) -> Double {
+        let index = (percentile / 100.0) * Double(data.count - 1)
+        let lower = data[Int(floor(index))]
+        let upper = data[Int(ceil(index))]
+        return lower + (upper - lower) * (index - floor(index))
+    }
+    
+    
+    /*private func removeOutliers(from data: [HealthData]) -> [HealthData] {
+        // Filtra i record con calorie superiori a 30
+        let filteredData = data.filter { $0.calories > 30 }
+
+        // Calcola il rapporto calorie/passi e calorie/minuti di esercizio per ogni record
+        let kcalsPerStep = filteredData.map { Double($0.calories) / Double($0.steps) }
+        let kcalsPerExerciseMinute = filteredData.map { Double($0.calories) / Double($0.exerciseMinutes) }
+
+        // Calcola i quartili per entrambi i rapporti
+        let sortedKcalsPerStep = kcalsPerStep.sorted()
+        let q1Step = percentile(sortedKcalsPerStep, percentile: 25)
+        let q3Step = percentile(sortedKcalsPerStep, percentile: 75)
+
+        let sortedKcalsPerExerciseMinute = kcalsPerExerciseMinute.sorted()
+        let q1Exercise = percentile(sortedKcalsPerExerciseMinute, percentile: 25)
+        let q3Exercise = percentile(sortedKcalsPerExerciseMinute, percentile: 75)
+
+        // Calcola l'IQR e i limiti per gli outlier per entrambi i rapporti
+        let iqrStep = q3Step - q1Step
+        let lowerBoundStep = q1Step - 1.5 * iqrStep
+        let upperBoundStep = q3Step + 1.5 * iqrStep
+
+        let iqrExercise = q3Exercise - q1Exercise
+        let lowerBoundExercise = q1Exercise - 1.5 * iqrExercise
+        let upperBoundExercise = q3Exercise + 1.5 * iqrExercise
+
+        // Filtra i dati per rimuovere gli outlier basati su entrambi i rapporti
+        return filteredData.filter { record in
+            let kcalsPerStep = Double(record.calories) / Double(record.steps)
+            let kcalsPerExerciseMinute = Double(record.calories) / Double(record.exerciseMinutes)
+            return (kcalsPerStep >= lowerBoundStep && kcalsPerStep <= upperBoundStep) &&
+                   (kcalsPerExerciseMinute >= lowerBoundExercise && kcalsPerExerciseMinute <= upperBoundExercise)
+        }
+    }
+
+    private func percentile(_ data: [Double], percentile: Double) -> Double {
+        let index = (percentile / 100.0) * Double(data.count - 1)
+        let lower = data[Int(floor(index))]
+        let upper = data[Int(ceil(index))]
+        return lower + (upper - lower) * (index - floor(index))
+    }*/
+    
 
     
 
     func fetchTodaySteps() async throws -> Int {
+        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        return try await fetchTodayData(for: stepType, unit: .count())
+    }
+    
+    func fetchTodayExerciseMinutes() async throws -> Int {
+        let exerciseTimeType = HKQuantityType.quantityType(forIdentifier: .appleExerciseTime)!
+        return try await fetchTodayData(for: exerciseTimeType, unit: .minute())
+    }
+    
+    private func fetchTodayData(for type: HKQuantityType, unit: HKUnit) async throws -> Int {
         guard let healthStore else {
             throw CustomError.healthStoreNotInitialized
         }
-
+        
         let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: Date())
-
-        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
-
-        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: nil)
+        let now = Date()
+        let startOfDay = calendar.startOfDay(for: now)
+        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: now)
         
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
-                if let error {
-                    continuation.resume(throwing: error)
+            let query = HKStatisticsQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, result, _ in
+                guard let result, let sum = result.sumQuantity() else {
+                    continuation.resume(returning: 0)
                     return
                 }
                 
-                let steps = result?.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                continuation.resume(returning: Int(steps))
+                continuation.resume(returning: Int(sum.doubleValue(for: unit)))
             }
             
             healthStore.execute(query)
@@ -178,14 +235,14 @@ class HealthData {
 
 
     
-    private func combineStepsAndCalories(steps: [Date: Int], calories: [Date: Int]) -> [(date: Date, steps: Int, calories: Int)] {
-        var combinedData: [(date: Date, steps: Int, calories: Int)] = []
+    private func combineData(steps: [Date: Int], exerciseMinutes: [Date: Int], calories: [Date: Int]) -> [HealthData] {
+        var combinedData: [HealthData] = []
         
         let allDates = Set(steps.keys).union(calories.keys)
         
         for date in allDates {
-            if let dailySteps = steps[date], let dailyCalories = calories[date] {
-                combinedData.append((date: date, steps: dailySteps, calories: dailyCalories))
+            if let dailySteps = steps[date], let dailyMinutes = exerciseMinutes[date], let dailyCalories = calories[date] {
+                combinedData.append(HealthData(date: date, steps: dailySteps, exerciseMinutes: dailyMinutes, calories: dailyCalories))
             }
         }
         
@@ -196,7 +253,7 @@ class HealthData {
     
     
     
-    private func saveToCSV(data: [(date: Date, steps: Int, calories: Int)]) throws {
+    /*private func saveToCSV(data: [HealthData]) throws {
         // Percorso del file nella directory Documents
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw CustomError.documentsFolderNotFound
@@ -205,10 +262,10 @@ class HealthData {
         let fileURL = documentsURL.appendingPathComponent("HealthData.csv")
         
         // Creazione del contenuto CSV
-        var csvText = "Steps,Calories\n"
+        var csvText = "Steps,ExerciseMinutes,Calories\n"
         
         for record in data {
-            csvText.append("\(record.steps),\(record.calories)\n")
+            csvText.append("\(record.steps),\(record.exerciseMinutes),\(record.calories)\n")
         }
         
         // Scrittura del file
@@ -252,7 +309,7 @@ class HealthData {
     
     
     
-    func saveCSVandCreateModel(data: [(date: Date, steps: Int, calories: Int)]) async throws {
+    func saveCSVandCreateModel(data: [HealthData]) async throws {
         try saveToCSV(data: data)
         try await createModel()
     }
@@ -283,10 +340,13 @@ class HealthData {
     
     
     
-    private func makePrediction(model: MLModel, calories: Int) throws -> Int {
+    private func makePrediction(model: MLModel, exerciseMinutes: Int, calories: Int) throws -> Int {
         // Prepara i dati di input come dizionario
-        let input = try MLDictionaryFeatureProvider(dictionary: ["Calories": calories])
-            
+        let input = try MLDictionaryFeatureProvider(dictionary: [
+            "ExerciseMinutes": exerciseMinutes,
+            "Calories": calories
+        ])
+        
         // Esegui la previsione
         let prediction = try model.prediction(from: input)
             
@@ -298,16 +358,18 @@ class HealthData {
     
     
 
-    func predictSteps(forCalories calories: Int) throws -> Int {
+    func predictSteps(forCalories calories: Int) async throws -> Int {
         guard calories > 0 else {
             return 0
         }
         
         let model = try loadModel()
+        
+        let exerciseMinutes = try await fetchTodayExerciseMinutes()
             
-        let predictedSteps = try makePrediction(model: model, calories: calories)
+        let predictedSteps = try makePrediction(model: model, exerciseMinutes: exerciseMinutes, calories: calories)
                     
         return predictedSteps
-    }
+    }*/
 
 }
