@@ -18,10 +18,15 @@ enum CustomError: LocalizedError {
     case csvNotFound
     
     case HKAuthorizationFailed
-    
-    case custom(message: String)
 
     case modelNotInitialized
+    
+    case envNotFound
+    
+    case noResponse
+    
+    case custom(message: String)
+    
     
     
     var errorDescription: String {
@@ -44,6 +49,12 @@ enum CustomError: LocalizedError {
             
         case .modelNotInitialized:
             return "Modello non inizializzato"
+            
+        case .envNotFound:
+            return "Impossibile trovare il file .env"
+            
+        case .noResponse:
+            return "Nessuna risposta dal LLM"
         
         case .custom(let message):
             return message
