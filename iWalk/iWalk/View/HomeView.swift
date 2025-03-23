@@ -10,7 +10,9 @@ import SwiftData
 
 struct HomeView: View {
     
-    private let healthData = HealthData()
+    private let healthService = HealthService()
+    
+    private let stepsPredictor = StepsPredictor.shared
     
     @Query private var meals: [Meal]
     
@@ -19,6 +21,10 @@ struct HomeView: View {
     @State private var stepsToDo = 0
     
     @AppStorage("targetKcals") private var target = 1000
+    
+    @State private var showingAlert = false
+    
+    @State private var alertMessage = ""
     
     private var todayKcals: Int {
         meals.reduce(0) { $0 + $1.kcal }
@@ -67,27 +73,27 @@ struct HomeView: View {
                         .blurredBackgorund()
                 }
             }
+            .alert(alertMessage, isPresented: $showingAlert) {
+                Button("Ok", role: .cancel) { }
+            }
         }
     }
     
     
     
     func updateData() {
-        do {
-            stepsToDo = try healthData.predictSteps(forCalories: kcalsToBurn)
-        } catch {
-            
-        }
         Task {
             do {
-                let tempSteps = try await healthData.fetchTodaySteps()
+                let tempStepsToDo = try await stepsPredictor.predictSteps(forCalories: kcalsToBurn)
+                let tempTodaySteps = try await healthService.fetchTodaySteps()
                 
                 DispatchQueue.main.async {
-                    todaySteps = tempSteps
-                    stepsToDo -= todaySteps
+                    todaySteps = tempTodaySteps
+                    stepsToDo = tempStepsToDo - todaySteps
                 }
             } catch {
-                
+                alertMessage = error.localizedDescription
+                showingAlert = true
             }
         }
     }

@@ -9,7 +9,9 @@
 import SwiftUI
 
 struct NewModelView: View {
-    private let healthData = HealthData()
+    private let healthService = HealthService()
+    
+    private let stepsPredictor = StepsPredictor.shared
     
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -22,14 +24,9 @@ struct NewModelView: View {
     
     @State private var isFetching = false
     
-    @State private var data: [(date: Date, steps: Int, flights: Int, calories: Int)] = []
+    @State private var data: [HealthData] = []
     
-    let columns = [
-        //GridItem(.flexible(), alignment: .center),
-        GridItem(.flexible(), alignment: .center),
-        GridItem(.flexible(), alignment: .center),
-        GridItem(.flexible(), alignment: .center)
-    ]
+    
     
     var body: some View {
         NavigationStack {
@@ -50,7 +47,7 @@ struct NewModelView: View {
                             isFetching = true
                             do {
                                 
-                                let tempData = try await healthData.fetchHealthData(since: years, removeOutliers: isOn, tolerance: tolerance)
+                                let tempData = try await healthService.fetchHealthData(since: years, removeOutliers: isOn, tolerance: tolerance)
                                 
                                 withAnimation {
                                     data = tempData
@@ -78,7 +75,7 @@ struct NewModelView: View {
                     Button {
                         Task {
                             do {
-                                try await healthData.saveCSVandCreateModel(data: data)
+                                try await stepsPredictor.saveCSVandCreateModel(data: data)
                                 alertMessage = "Modello creato e salvato"
                             } catch {
                                 alertMessage = error.localizedDescription
@@ -98,11 +95,11 @@ struct NewModelView: View {
                             Spacer()
                             Text("\(record.steps) passi")
                             Spacer()
-                            Text("\(record.flights) piani")
+                            Text("\(record.exerciseMinutes) minuti")
                             Spacer()
                             Text("\(record.calories) kcal")
                         }
-                        .font(.footnote)
+                        .font(.subheadline)
                     }
                 }
             }
