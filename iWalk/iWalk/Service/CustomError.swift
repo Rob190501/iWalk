@@ -13,7 +13,7 @@ enum CustomError: LocalizedError {
     
     case emptyFetchError
     
-    case documentsFolderNotFound
+    case documentsDirectoryNotFound
     
     case csvNotFound
     
@@ -38,7 +38,7 @@ enum CustomError: LocalizedError {
         case .emptyFetchError:
             return "Nessun dato trovato"
             
-        case .documentsFolderNotFound:
+        case .documentsDirectoryNotFound:
             return "Impossibile trovare la directory Documents"
             
         case .csvNotFound:

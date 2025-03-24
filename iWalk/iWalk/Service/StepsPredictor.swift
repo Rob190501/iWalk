@@ -26,7 +26,7 @@ class StepsPredictor {
     
     private func getDocumentsDirectory() throws -> URL {
         guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            throw CustomError.documentsFolderNotFound
+            throw CustomError.documentsDirectoryNotFound
         }
         
         return documentsDirectory
@@ -104,6 +104,20 @@ class StepsPredictor {
     
     
     
+    func predictSteps(forCalories calories: Int) async throws -> Int {
+        guard calories > 0 else {
+            return 0
+        }
+        
+        let hs = HealthService.shared
+        
+        let exerciseMinutes = try await hs.fetchTodayExerciseMinutes()
+        
+        let predictedSteps = try makePrediction(exerciseMinutes: exerciseMinutes, calories: calories)
+        
+        return predictedSteps
+    }
+    
     private func makePrediction(exerciseMinutes: Int, calories: Int) throws -> Int {
         guard let model else {
             throw CustomError.modelNotInitialized
@@ -122,20 +136,6 @@ class StepsPredictor {
         let steps = prediction.featureValue(for: "Steps")!.doubleValue
         
         return Int(steps)
-    }
-    
-    func predictSteps(forCalories calories: Int) async throws -> Int {
-        guard calories > 0 else {
-            return 0
-        }
-        
-        let hs = HealthService.shared
-        
-        let exerciseMinutes = try await hs.fetchTodayExerciseMinutes()
-        
-        let predictedSteps = try makePrediction(exerciseMinutes: exerciseMinutes, calories: calories)
-        
-        return predictedSteps
     }
     
 }
