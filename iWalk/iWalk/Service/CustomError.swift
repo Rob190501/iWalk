@@ -29,7 +29,7 @@ enum CustomError: LocalizedError {
     
     
     
-    var errorDescription: String {
+    var errorDescription: String? {
         switch self {
             
         case .healthStoreNotInitialized:
