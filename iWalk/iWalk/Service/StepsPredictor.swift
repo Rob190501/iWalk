@@ -129,7 +129,7 @@ class StepsPredictor {
             return 0
         }
         
-        let hs = HealthService()
+        let hs = HealthService.shared
         
         let exerciseMinutes = try await hs.fetchTodayExerciseMinutes()
         

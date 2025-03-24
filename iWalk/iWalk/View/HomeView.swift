@@ -10,7 +10,7 @@ import SwiftData
 
 struct HomeView: View {
     
-    private let healthService = HealthService()
+    private let healthService = HealthService.shared
     
     private let stepsPredictor = StepsPredictor.shared
     

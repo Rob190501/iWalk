@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct NewModelView: View {
-    private let healthService = HealthService()
+    private let healthService = HealthService.shared
     
     private let stepsPredictor = StepsPredictor.shared
     
