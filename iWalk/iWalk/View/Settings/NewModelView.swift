@@ -16,11 +16,13 @@ struct NewModelView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     
-    @State private var isOn = true
+    @State private var generateSyntheticData = true
+    @State private var records = 0.5
     
     @State private var years = 5
     
-    @State private var tolerance = 0.025
+    @State private var removeOutliers = true
+    @State private var tolerance = 0.010
     
     @State private var isFetching = false
     
@@ -32,27 +34,37 @@ struct NewModelView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Abilita rimozione outlier", isOn: $isOn)
+                    Toggle("Rimozione outlier", isOn: $removeOutliers)
                     
                     Stepper("Tolleranza: ±\(String(format: "%.3f", tolerance)) kcal/passo", value: $tolerance, in: 0.01...0.05, step: 0.005)
-                        .disabled(!isOn)
-                        .foregroundStyle(isOn ? Color.primary : Color.gray.opacity(0.7))
-
-                        
+                        .disabled(!removeOutliers)
+                        .foregroundStyle(removeOutliers ? Color.primary : Color.gray.opacity(0.7))
                     
+                    Toggle("Generazione record sintetici", isOn: $generateSyntheticData)
+                        .disabled(!removeOutliers)
+                        .foregroundStyle(removeOutliers ? Color.primary : Color.gray.opacity(0.7))
+                    
+                    Stepper("Numero record: \(String(format: "%.1f", records))x", value: $records, in: 0.5...2.0, step: 0.5)
+                        .disabled(!generateSyntheticData || !removeOutliers)
+                        .foregroundStyle(generateSyntheticData && removeOutliers ? Color.primary : Color.gray.opacity(0.7))
+
                     Stepper("Anni da includere: \(years)", value: $years, in: 1...10, step: 1)
                     
                     Button {
                         Task {
                             isFetching = true
                             do {
-                                
-                                let tempData = try await healthService.fetchHealthData(since: years, removeOutliers: isOn, tolerance: tolerance)
+                                let tempData = try await healthService.fetchHealthData(
+                                    since: years,
+                                    removeOutliers: removeOutliers,
+                                    tolerance: tolerance,
+                                    generateSyntheticData: generateSyntheticData && removeOutliers,
+                                    records: records
+                                )
                                 
                                 withAnimation {
                                     data = tempData
                                 }
-                                
                             } catch {
                                 alertMessage = error.localizedDescription
                                 showingAlert = true
@@ -88,18 +100,20 @@ struct NewModelView: View {
                     .disabled(data.isEmpty)
                 }
                 
-                Section {
-                    List(data, id: \.date) { record in
-                        HStack {
-                            Text(formatDate(date: record.date))
-                            Spacer()
-                            Text("\(record.steps) passi")
-                            Spacer()
-                            Text("\(record.exerciseMinutes) minuti")
-                            Spacer()
-                            Text("\(record.calories) kcal")
+                if(!data.isEmpty) {
+                    Section(header: Text("Dataset")) {
+                        List(data) { record in
+                            HStack {
+                                Text(formatDate(date: record.date))
+                                Spacer()
+                                Text("\(record.steps) passi")
+                                Spacer()
+                                Text("\(record.exerciseMinutes) minuti")
+                                Spacer()
+                                Text("\(record.calories) kcal")
+                            }
+                            .font(.subheadline)
                         }
-                        .font(.subheadline)
                     }
                 }
             }

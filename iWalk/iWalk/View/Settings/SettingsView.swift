@@ -13,9 +13,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                SettingsRow(icon: "gearshape.fill", color: .accentColor, title: "Nuovo modello", destination: NewModelView())
-                SettingsRow(icon: "gearshape.fill", color: .gray, title: "Generali", destination: Text("Hello"))
-                SettingsRow(icon: "gearshape.fill", color: .gray, title: "Generali", destination: Text("Hello"))
+                SettingsRow(icon: "plus", color: .green, title: "Nuovo modello", destination: NewModelView())
+                
+                SettingsRow(icon: "ruler.fill", color: .red, title: "Precisione modello", destination: ModelAccuracyView())
+                
+                SettingsRow(icon: "testtube.2", color: .blue, title: "Prova modello", destination: ModelTestView())
             }
             .customNSToolbar(title: "Impostazioni") {
                 Image(systemName: "gear")
@@ -40,7 +42,7 @@ struct SettingsRow<Destination: View>: View {
                     .scaledToFit()
                     .frame(width: 30, height: 30)
                     .padding(6)
-                    .background(.tint)
+                    .background(color)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 
