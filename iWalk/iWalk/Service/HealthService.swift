@@ -21,7 +21,7 @@ class HealthService {
     
     
     
-    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double) async throws -> [HealthData] {
+    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double, generateSyntheticData: Bool, records: Double) async throws -> [HealthData] {
         guard let healthStore else {
             throw CustomError.healthStoreNotInitialized
         }
@@ -54,9 +54,17 @@ class HealthService {
         let calories = try await fetchDailyData(for: caloriesType, unit: .kilocalorie(), since: years)
         
         // 3. Combina i dati ed eventualmente rimuove gli outlier
-        let combinedData = combineData(steps: steps, exerciseMinutes: exerciseMinutes, calories: calories)
+        var combinedData = combineData(steps: steps, exerciseMinutes: exerciseMinutes, calories: calories)
         
-        return removeOutliers ? self.removeOutliers(from: combinedData/*, tolerance: tolerance*/) : combinedData
+        if removeOutliers {
+            combinedData = self.removeOutliers(from: combinedData, tolerance: tolerance)
+            
+            if generateSyntheticData {
+                combinedData += self.generateSyntheticData(from: combinedData, count: Int(records * Double(combinedData.count)))
+            }
+        }
+        
+        return combinedData
     }
     
     
@@ -100,8 +108,7 @@ class HealthService {
     
     
     
-    /*private func removeOutliers(from data: [HealthData], tolerance: Double) -> [HealthData] {
-        
+    private func removeOutliers(from data: [HealthData], tolerance: Double) -> [HealthData] {
         let tempData = data.filter { record in
             record.calories > 30
         }
@@ -119,39 +126,40 @@ class HealthService {
             let kcalsPerStep = Double(record.calories) / Double(record.steps)
             return kcalsPerStep >= lowerBound && kcalsPerStep <= upperBound
         }
-    }*/
+    }
     
-    private func removeOutliers(from data: [HealthData]) -> [HealthData] {
-        // Filtra i record con calorie superiori a 30
-        let filteredData = data.filter { $0.calories > 30 }
-
-        // Calcola il rapporto calorie/passi per ogni record
-        let kcalsPerStep = filteredData.map { Double($0.calories) / Double($0.steps) }
-
-        // Calcola il primo e terzo quartile
-        let sortedKcalsPerStep = kcalsPerStep.sorted()
-        let q1 = percentile(sortedKcalsPerStep, percentile: 25)
-        let q3 = percentile(sortedKcalsPerStep, percentile: 75)
-
-        // Calcola l'IQR e i limiti per gli outlier
-        let iqr = q3 - q1
-        let lowerBound = q1 - 1.5 * iqr
-        let upperBound = q3 + 1.5 * iqr
-
-        // Filtra i dati per rimuovere gli outlier
-        return filteredData.filter { record in
-            let kcalsPerStep = Double(record.calories) / Double(record.steps)
-            return kcalsPerStep >= lowerBound && kcalsPerStep <= upperBound
+    func generateSyntheticData(from realData: [HealthData], count: Int) -> [HealthData] {
+        guard !realData.isEmpty else {
+            return []
         }
+        
+        var syntheticData: [HealthData] = []
+        
+        for _ in 0..<count {
+            // Record casuale
+            let randomIndex = Int.random(in: 0..<realData.count)
+            let realRecord = realData[randomIndex]
+            
+            // Calcola variazione casuale (entro +-15%)
+            let variation = Double.random(in: 0.85...1.15)
+            
+            // Applica le variazioni
+            let syntheticSteps = Int(Double(realRecord.steps) * variation)
+            let syntheticExercise = Int(Double(realRecord.exerciseMinutes) * variation)
+            let syntheticCalories = Int(Double(realRecord.calories) * variation)
+            
+            // Crea il nuovo record
+            let syntheticRecord = HealthData(
+                date: Date(),
+                steps: syntheticSteps,
+                exerciseMinutes: syntheticExercise,
+                calories: syntheticCalories
+            )
+            syntheticData.append(syntheticRecord)
+        }
+        
+        return syntheticData
     }
-
-    private func percentile(_ data: [Double], percentile: Double) -> Double {
-        let index = (percentile / 100.0) * Double(data.count - 1)
-        let lower = data[Int(floor(index))]
-        let upper = data[Int(ceil(index))]
-        return lower + (upper - lower) * (index - floor(index))
-    }
-    
     
     
     func fetchTodaySteps() async throws -> Int {
