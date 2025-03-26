@@ -48,7 +48,11 @@ class StepsPredictor {
     func saveCSVandCreateModel(data: [HealthData]) async throws {
         try saveToCSV(data: data)
         try await createModel()
+        
         model = loadModel()
+        
+        let storage = HealthDataStorage()
+        storage.healthData = data
     }
     
     private func saveToCSV(data: [HealthData]) throws {
@@ -102,6 +106,62 @@ class StepsPredictor {
         #endif
     }
     
+    func kFoldValidation(data: [HealthData], k: Int) throws -> Int {
+        #if canImport(CreateML)
+        let totalRows = data.count
+        let foldSize = totalRows / k
+        var errors: [Int] = []
+        
+        let shuffledData = data.shuffled()
+        
+        for i in 0..<k {
+            // Calcolare gli indici per il testSet del fold corrente
+            let start = i * foldSize
+            let end = min(start + foldSize, totalRows)
+            
+            // Creare il test set per il fold corrente
+            let testSet = Array(shuffledData[start..<end])
+            
+            // Creare il training set rimuovendo le righe del test set
+            var trainingData: [HealthData] = []
+            trainingData.append(contentsOf: shuffledData[0..<start])
+            trainingData.append(contentsOf: shuffledData[end..<totalRows])
+                                     
+            
+            var trainingSet = DataFrame()
+            // Aggiungi le colonne una per una, convertendo gli array in formati accettati
+            trainingSet.append(column: Column(name: "Steps", contents: trainingData.map { Double($0.steps) }))
+            trainingSet.append(column: Column(name: "ExerciseMinutes", contents: trainingData.map { Double($0.exerciseMinutes) }))
+            trainingSet.append(column: Column(name: "Calories", contents: trainingData.map { Double($0.calories) }))
+             
+            // Addestrare il modello
+            let regressor = try MLLinearRegressor(trainingData: trainingSet, targetColumn: "Steps")
+            
+            // Calcolo errore medio assoluto (MAE) sul fold
+            errors.append(try MAE(data: testSet, model: regressor.model))
+        }
+        
+        // Calcolare l'errore medio su tutti i fold
+        return Int(errors.reduce(0, +) / errors.count)
+        #endif
+        
+        #if DEBUG
+        return 0
+        #endif
+    }
+    
+    func MAE(data: [HealthData], model: MLModel? = nil) throws -> Int{
+        var sum = 0
+        
+        for record in data {
+            let predictedSteps = try makePrediction(exerciseMinutes: record.exerciseMinutes, calories: record.calories, model: model)
+            let absoluteError = abs(predictedSteps - record.steps)
+            sum += absoluteError
+        }
+        
+        return Int(sum / data.count)
+    }
+    
     
     
     func predictSteps(forCalories calories: Int) async throws -> Int {
@@ -109,17 +169,29 @@ class StepsPredictor {
             return 0
         }
         
-        let hs = HealthService.shared
-        
-        let exerciseMinutes = try await hs.fetchTodayExerciseMinutes()
+        let exerciseMinutes = try await HealthService.shared.fetchTodayExerciseMinutes()
         
         let predictedSteps = try makePrediction(exerciseMinutes: exerciseMinutes, calories: calories)
         
         return predictedSteps
     }
     
-    private func makePrediction(exerciseMinutes: Int, calories: Int) throws -> Int {
-        guard let model else {
+    func predictSteps(forCalories calories: Int, forMinutes excerciseMinutes: Int) throws -> Int {
+        print("kcal : \(calories) exc: \(excerciseMinutes)")
+        
+        guard calories > 0 && excerciseMinutes >= 0 else {
+            return 0
+        }
+        
+        let predictedSteps = try makePrediction(exerciseMinutes: excerciseMinutes, calories: calories)
+        
+        return predictedSteps
+    }
+    
+    private func makePrediction(exerciseMinutes: Int, calories: Int, model: MLModel? = nil) throws -> Int {
+        let modelToUse = model ?? self.model
+        
+        guard let modelToUse else {
             throw CustomError.modelNotInitialized
         }
         
@@ -130,7 +202,7 @@ class StepsPredictor {
         ])
         
         // Esegui la previsione
-        let prediction = try model.prediction(from: input)
+        let prediction = try modelToUse.prediction(from: input)
         
         // Recupera il risultato dalla colonna target (Steps)
         let steps = prediction.featureValue(for: "Steps")!.doubleValue
