@@ -71,6 +71,52 @@ class StepsPredictor {
         // Scrittura del file
         try csvText.write(to: fileURL, atomically: true, encoding: .utf8)
     }
+        
+    #if canImport(CreateML)
+    private func createTempModel(data: [HealthData]) async throws -> MLLinearRegressor {
+        
+        let tempModel = try MLLinearRegressor(trainingData: data.toDataFrame(), targetColumn: "Steps")
+        return tempModel
+        
+    }
+    #endif
+    
+    func modelImputation(from realData: [HealthData], count: Int) async throws -> [HealthData] {
+        #if canImport(CreateML)
+        guard !realData.isEmpty else {
+            return []
+        }
+        
+        var syntheticData: [HealthData] = []
+        
+        let regressor = try await createTempModel(data: realData)
+        
+        for _ in 0..<count {
+            // Record casuale
+            let randomIndex = Int.random(in: 0..<realData.count)
+            let realRecord = realData[randomIndex]
+            
+            // Calcola variazione casuale (entro +-15%)
+            let variation = Double.random(in: 0.85...1.15)
+            
+            // Applica le variazioni
+            let syntheticExercise = Int(Double(realRecord.exerciseMinutes) * variation)
+            let syntheticCalories = Int(Double(realRecord.calories) * variation)
+            
+            let syntheticRecord = HealthData(
+                date: Date(),
+                steps: try makePrediction(exerciseMinutes: syntheticExercise, calories: syntheticCalories, model: regressor.model),
+                exerciseMinutes: syntheticExercise,
+                calories: syntheticCalories
+            )
+            syntheticData.append(syntheticRecord)
+        }
+        
+        return syntheticData
+        #endif
+        return []
+    }
+    
     
     private func createModel() async throws {
         #if canImport(CreateML)
@@ -106,8 +152,12 @@ class StepsPredictor {
         #endif
     }
     
-    func kFoldValidation(data: [HealthData], k: Int) throws -> Int {
+    func kFoldValidation(data: [HealthData], k: Int) async throws -> Int {
         #if canImport(CreateML)
+        guard !data.isEmpty else {
+            return 0
+        }
+        
         let totalRows = data.count
         let foldSize = totalRows / k
         var errors: [Int] = []
@@ -128,14 +178,16 @@ class StepsPredictor {
             trainingData.append(contentsOf: shuffledData[end..<totalRows])
                                      
             
-            var trainingSet = DataFrame()
+            /*var trainingSet = DataFrame()
             // Aggiungi le colonne una per una, convertendo gli array in formati accettati
             trainingSet.append(column: Column(name: "Steps", contents: trainingData.map { Double($0.steps) }))
             trainingSet.append(column: Column(name: "ExerciseMinutes", contents: trainingData.map { Double($0.exerciseMinutes) }))
             trainingSet.append(column: Column(name: "Calories", contents: trainingData.map { Double($0.calories) }))
              
             // Addestrare il modello
-            let regressor = try MLLinearRegressor(trainingData: trainingSet, targetColumn: "Steps")
+            let regressor = try MLLinearRegressor(trainingData: trainingSet, targetColumn: "Steps")*/
+            
+            let regressor = try await createTempModel(data: trainingData)
             
             // Calcolo errore medio assoluto (MAE) sul fold
             errors.append(try MAE(data: testSet, model: regressor.model))
