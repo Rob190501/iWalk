@@ -13,6 +13,7 @@ class HealthService {
     static var shared = HealthService()
     private var healthStore: HKHealthStore?
     
+    private let stepsPredictor = StepsPredictor.shared
     
     
     private init() {
@@ -21,7 +22,7 @@ class HealthService {
     
     
     
-    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double, generateSyntheticData: Bool, records: Double) async throws -> [HealthData] {
+    func fetchHealthData(since years: Int, removeOutliers: Bool, tolerance: Double, generateSyntheticData: Bool, syntheticRecords: Int) async throws -> [HealthData] {
         guard let healthStore else {
             throw CustomError.healthStoreNotInitialized
         }
@@ -60,7 +61,7 @@ class HealthService {
             combinedData = self.removeOutliers(from: combinedData, tolerance: tolerance)
             
             if generateSyntheticData {
-                combinedData += self.generateSyntheticData(from: combinedData, count: Int(records * Double(combinedData.count)))
+                combinedData += try await self.generateSyntheticData(from: combinedData, count: syntheticRecords)
             }
         }
         
@@ -120,16 +121,16 @@ class HealthService {
         kcalsPerStep /= Double(tempData.count)
         
         let lowerBound = kcalsPerStep - tolerance
-        let upperBound = kcalsPerStep + tolerance
+        //let upperBound = kcalsPerStep + tolerance
         
         return tempData.filter { record in
             let kcalsPerStep = Double(record.calories) / Double(record.steps)
-            return kcalsPerStep >= lowerBound && kcalsPerStep <= upperBound
+            return kcalsPerStep >= lowerBound //&& kcalsPerStep <= upperBound
         }
     }
     
-    func generateSyntheticData(from realData: [HealthData], count: Int) -> [HealthData] {
-        guard !realData.isEmpty else {
+    func generateSyntheticData(from realData: [HealthData], count: Int) async throws -> [HealthData] {
+        /*guard !realData.isEmpty else {
             return []
         }
         
@@ -156,9 +157,9 @@ class HealthService {
                 calories: syntheticCalories
             )
             syntheticData.append(syntheticRecord)
-        }
+        }*/
         
-        return syntheticData
+        return try await stepsPredictor.modelImputation(from: realData, count: count)
     }
     
     
