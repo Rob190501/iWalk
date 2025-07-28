@@ -17,7 +17,7 @@ struct NewModelView: View {
     @State private var alertMessage = ""
     
     @State private var generateSyntheticData = true
-    @State private var records = 0.5
+    @State private var records = 100
     
     @State private var years = 5
     
@@ -26,7 +26,15 @@ struct NewModelView: View {
     
     @State private var isFetching = false
     
-    @State private var data: [HealthData] = []
+    @State private var data: [HealthData] = [] {
+        didSet {
+            calculateMAE()
+        }
+    }
+    
+    @State private var folds = 5
+    
+    @State private var MAE = 0
     
     
     
@@ -44,7 +52,7 @@ struct NewModelView: View {
                         .disabled(!removeOutliers)
                         .foregroundStyle(removeOutliers ? Color.primary : Color.gray.opacity(0.7))
                     
-                    Stepper("Numero record: \(String(format: "%.1f", records))x", value: $records, in: 0.5...2.0, step: 0.5)
+                    Stepper("Numero record: \(records)", value: $records, in: 100...1000, step: 100)
                         .disabled(!generateSyntheticData || !removeOutliers)
                         .foregroundStyle(generateSyntheticData && removeOutliers ? Color.primary : Color.gray.opacity(0.7))
 
@@ -59,7 +67,7 @@ struct NewModelView: View {
                                     removeOutliers: removeOutliers,
                                     tolerance: tolerance,
                                     generateSyntheticData: generateSyntheticData && removeOutliers,
-                                    records: records
+                                    syntheticRecords: records
                                 )
                                 
                                 withAnimation {
@@ -101,6 +109,15 @@ struct NewModelView: View {
                 }
                 
                 if(!data.isEmpty) {
+                    Section(header: Text("MAE")) {
+                        Stepper("Numero folds: \(folds)", value: $folds, in: 5...10, step: 5)
+                            .onChange(of: folds) {
+                                calculateMAE()
+                            }
+                        
+                        Text("MAE: ± \(MAE)")
+                    }
+                    
                     Section(header: Text("Dataset")) {
                         List(data) { record in
                             HStack {
@@ -130,6 +147,18 @@ struct NewModelView: View {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "dd/MM/yyyy"
         return dateFormatter.string(from: date)
+    }
+    
+    func calculateMAE() {
+        Task {
+            do {
+                MAE = try await stepsPredictor.kFoldValidation(data: data, k: folds)
+            } catch {
+                alertMessage = error.localizedDescription
+                showingAlert = true
+                MAE = 0
+            }
+        }
     }
     
 }
