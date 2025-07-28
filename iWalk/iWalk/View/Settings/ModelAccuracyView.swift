@@ -9,19 +9,17 @@ import SwiftUI
 
 struct ModelAccuracyView: View {
     
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
     @StateObject private var storage = HealthDataStorage()
     
     private var stepsPredictor = StepsPredictor.shared
     
     @State private var folds = 5
     
-    private var MAE: Int {
-        do {
-            return try stepsPredictor.kFoldValidation(data: storage.healthData, k: folds)
-        } catch {
-            return -1
-        }
-    }
+    @State private var mae: Int = 0
+    @State private var isCalculating = false
     
     var body: some View {
         NavigationStack {
@@ -29,7 +27,13 @@ struct ModelAccuracyView: View {
                 Section {
                     Stepper("Numero folds: \(folds)", value: $folds, in: 5...10, step: 5)
                     
-                    Text("MAE: ± \(MAE)")
+                    HStack {
+                        Text("MAE: ± \(mae)")
+                        if isCalculating {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
                 }
                     
                 if(!storage.healthData.isEmpty) {
@@ -50,8 +54,43 @@ struct ModelAccuracyView: View {
                 }
             }
         }
+        .alert(alertMessage, isPresented: $showingAlert) {
+            Button("Ok", role: .cancel) { }
+        }
         .navigationTitle("Precisione modello")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            calculateMAE()
+        }
+        .onChange(of: folds) { _, _ in
+            calculateMAE()
+        }
+    }
+    
+    private func calculateMAE() {
+        guard !storage.healthData.isEmpty else {
+            mae = 0
+            return
+        }
+        
+        isCalculating = true
+        
+        Task {
+            do {
+                let result = try await stepsPredictor.kFoldValidation(data: storage.healthData, k: folds)
+                await MainActor.run {
+                    self.mae = result
+                    self.isCalculating = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.alertMessage = error.localizedDescription
+                    self.showingAlert = true
+                    self.mae = 0
+                    self.isCalculating = false
+                }
+            }
+        }
     }
     
     func formatDate(date: Date) -> String {
