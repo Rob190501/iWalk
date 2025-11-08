@@ -6,7 +6,7 @@
 //
 import Foundation
 import SwiftData
-import SwiftUICore
+import SwiftUI
 
 @Model
 class Meal {
